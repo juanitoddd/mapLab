@@ -8,31 +8,33 @@ void ProjectorApp::setup() {
 
 void ProjectorApp::onStateChanged(int& index) {
     ofLogNotice("ProjectorApp") << "State changed to " << index;
-    // Update projector resources if necessary.
+    if (engine_) {
+        engine_->activate(static_cast<State>(index));
+    }
 }
 
-void ProjectorApp::draw(){      
-  ofSetBackgroundColor(ofColor(114, 144, 154));
+void ProjectorApp::draw(){
+    ofSetBackgroundColor(ofColor::black);
 
-  switch (appState->getState()) {
+    if (engine_) {
+        auto& fbo = engine_->getProjectorOutput();
+        if (fbo.isAllocated()) {
+            // Letterbox: preserve aspect ratio
+            int winW = ofGetWidth();
+            int winH = ofGetHeight();
+            int texW = fbo.getWidth();
+            int texH = fbo.getHeight();
 
-    case State::STATE_IDLE:
-      ofSetBackgroundColor(ofColor(114, 255, 154));
-      break;
+            float scale = std::min(
+                static_cast<float>(winW) / texW,
+                static_cast<float>(winH) / texH
+            );
+            int drawW = static_cast<int>(texW * scale);
+            int drawH = static_cast<int>(texH * scale);
+            int x = (winW - drawW) / 2;
+            int y = (winH - drawH) / 2;
 
-    case State::STATE_CAMERA_CALIB:
-      ofSetBackgroundColor(ofColor(78, 144, 154));
-      // Draw calibration pattern
-      break;
-
-    case State::STATE_SCAN:
-      ofSetBackgroundColor(ofColor(114, 144, 98));
-      // Draw structured-light pattern
-      break;
-
-    case State::STATE_PROJECTOR_CALIB:
-      ofSetBackgroundColor(ofColor(114, 144, 78));
-      // Render projection mapping
-      break;
-  }
+            fbo.draw(x, y, drawW, drawH);
+        }
+    }
 }
