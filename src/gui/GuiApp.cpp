@@ -17,10 +17,18 @@ void GuiApp::update() {
 		engine_->update();
 		const ofPixels& pix = engine_->getLatestFrame();
 		if (pix.isAllocated() && pix.getWidth() > 0 && pix.getHeight() > 0) {
-			if (!cameraTex_.isAllocated() || cameraTex_.getWidth() != pix.getWidth() || cameraTex_.getHeight() != pix.getHeight()) {
-				cameraTex_.allocate(pix);
+			int w = pix.getWidth();
+			int h = pix.getHeight();
+			int ch = pix.getNumChannels();
+			// Re-allocate if dimensions changed
+			if (!cameraTex_.isAllocated() ||
+			    static_cast<int>(cameraTex_.getWidth()) != w ||
+			    static_cast<int>(cameraTex_.getHeight()) != h) {
+				cameraTex_.clear();
+				cameraTex_.allocate(w, h, (ch == 4) ? GL_RGBA : GL_RGB);
 			}
-			cameraTex_.loadData(pix);
+			cameraTex_.loadData(pix.getData(), w, h,
+			    (ch == 4) ? GL_RGBA : (ch == 3) ? GL_RGB : GL_LUMINANCE);
 		}
 	}
 }
@@ -29,18 +37,19 @@ void GuiApp::draw() {
 	ofSetBackgroundColor(backgroundColor);
 	gui.begin();
 
-	ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
-	ImGuiID dockspace_id = ImGui::GetID("MainDockspace");
-	ImGui::DockSpace(dockspace_id, ImVec2(0, 0), dockspace_flags);
-
 	if (engine_) {
 		ImGui::Begin("Camera Preview");
-		bool allocated = cameraTex_.isAllocated() && cameraTex_.getWidth() > 0 && cameraTex_.getHeight() > 0;
+		bool allocated = cameraTex_.isAllocated() &&
+		                 static_cast<int>(cameraTex_.getWidth()) > 0 &&
+		                 static_cast<int>(cameraTex_.getHeight()) > 0;
 		if (allocated) {
 			float w = ImGui::GetWindowWidth() - 20;
 			float h = w * (720.0f / 1280.0f);
-			ImGui::Image((ImTextureID)(uintptr_t)cameraTex_.getTextureData().textureID, ImVec2(w, h));
-			ImGui::Text("Texture: %dx%d", cameraTex_.getWidth(), cameraTex_.getHeight());
+			ImGui::Image((ImTextureID)(uintptr_t)cameraTex_.getTextureData().textureID,
+			             ImVec2(w, h));
+			ImGui::Text("Texture: %dx%d",
+			            static_cast<int>(cameraTex_.getWidth()),
+			            static_cast<int>(cameraTex_.getHeight()));
 		} else {
 			ImGui::Text("No camera feed");
 		}
@@ -59,14 +68,14 @@ void GuiApp::draw() {
 					ImGui::PopStyleColor();
 				} else if (ImGui::MenuItem(appState->toString(state).data())) {
 					appState->setState(static_cast<int>(state));
-					// activate() handled by ProjectorApp stateChanged listener
 				}
 			}
 			ImGui::EndMenu();
 		}
 		if (engine_ && !engine_->getBlockReason().empty()) {
 			ImGui::SameLine();
-			ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "[Blocked: %s]", engine_->getBlockReason().c_str());
+			ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f),
+			                   "[Blocked: %s]", engine_->getBlockReason().c_str());
 		}
 		ImGui::EndMainMenuBar();
 	}
