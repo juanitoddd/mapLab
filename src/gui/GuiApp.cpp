@@ -88,10 +88,25 @@ void GuiApp::draw() {
 	}
 
 	gui.end();
+
+	// Debug: native OF draw bypassing ImGui entirely
+	if (debugDrawCamera_ && cameraImage_.isAllocated() && cameraImage_.getWidth() > 0) {
+		ofPushStyle();
+		ofSetColor(255);
+		cameraImage_.draw(10, 100, 640, 360);
+		ofSetColor(255, 0, 0);
+		ofDrawBitmapString("DEBUG: Native OF draw (press 'd' to toggle)", 12, 95);
+		ofPopStyle();
+	}
 }
 
 void GuiApp::exit() { }
-void GuiApp::keyPressed(int key) { }
+void GuiApp::keyPressed(int key) {
+	if (key == 'd' || key == 'D') {
+		debugDrawCamera_ = !debugDrawCamera_;
+		ofLogNotice("GuiApp") << "Debug camera draw: " << (debugDrawCamera_ ? "ON" : "OFF");
+	}
+}
 void GuiApp::keyReleased(int key) { }
 void GuiApp::mouseMoved(int x, int y) { }
 void GuiApp::mouseDragged(int x, int y, int button) { }
