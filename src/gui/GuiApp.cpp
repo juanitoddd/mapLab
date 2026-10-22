@@ -16,8 +16,11 @@ void GuiApp::update() {
 	if (engine_) {
 		engine_->update();
 		const ofPixels& pix = engine_->getLatestFrame();
-		if (pix.isAllocated()) {
-			cameraImage_.setFromPixels(pix);
+		if (pix.isAllocated() && pix.getWidth() > 0 && pix.getHeight() > 0) {
+			if (!cameraTex_.isAllocated() || cameraTex_.getWidth() != pix.getWidth() || cameraTex_.getHeight() != pix.getHeight()) {
+				cameraTex_.allocate(pix);
+			}
+			cameraTex_.loadData(pix);
 		}
 	}
 }
@@ -32,13 +35,12 @@ void GuiApp::draw() {
 
 	if (engine_) {
 		ImGui::Begin("Camera Preview");
-		auto tex = cameraImage_.getTexture();
-		bool allocated = tex.isAllocated() && tex.getWidth() > 0 && tex.getHeight() > 0;
+		bool allocated = cameraTex_.isAllocated() && cameraTex_.getWidth() > 0 && cameraTex_.getHeight() > 0;
 		if (allocated) {
 			float w = ImGui::GetWindowWidth() - 20;
 			float h = w * (720.0f / 1280.0f);
-			ImGui::Image((ImTextureID)(uintptr_t)tex.getTextureData().textureID, ImVec2(w, h));
-			ImGui::Text("Texture: %dx%d (id=%u)", tex.getWidth(), tex.getHeight(), tex.getTextureData().textureID);
+			ImGui::Image((ImTextureID)(uintptr_t)cameraTex_.getTextureData().textureID, ImVec2(w, h));
+			ImGui::Text("Texture: %dx%d", cameraTex_.getWidth(), cameraTex_.getHeight());
 		} else {
 			ImGui::Text("No camera feed");
 		}
