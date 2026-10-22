@@ -10,7 +10,8 @@ Engine::Engine(std::shared_ptr<AppState> state,
 	: appState_(std::move(state))
 	, dataRoot_(dataRoot)
 	, projectorWidth_(projectorWidth)
-	, projectorHeight_(projectorHeight) {
+	, projectorHeight_(projectorHeight)
+	, cameraCalibEngine_(std::make_unique<CameraCalibrationEngine>(grabber_)) {
 	ofLogNotice("cameraDeviceId") << cameraDeviceId;
 	grabber_.setDeviceID(cameraDeviceId);
 	grabber_.setDesiredFrameRate(30);
@@ -20,10 +21,28 @@ Engine::Engine(std::shared_ptr<AppState> state,
 void Engine::setup() {
 	ensureDirectories();
 	tryLoadCameraCalibration();
+	setupEventListeners();
 	projectorOutput_.allocate(projectorWidth_, projectorHeight_, GL_RGBA);
 	projectorOutput_.begin();
 	ofClear(0, 0, 0, 255);
 	projectorOutput_.end();
+}
+
+void Engine::setupEventListeners() {
+	camCalCompleteListener_ = cameraCalibEngine_->onComplete.newListener([this]() {
+		auto cal = cameraCalibEngine_->getCalibration();
+		if (cal.isValid()) {
+			repository_.setCameraCalibration(cal);
+			cal.save(DataRepository::getCameraCalibrationPath());
+			ofLogNotice("Engine") << "Camera calibration solved and saved";
+		}
+		State idleState = State::STATE_IDLE;
+		ofNotifyEvent(onRequestState, idleState, this);
+	});
+
+	camCalWarningListener_ = cameraCalibEngine_->onWarning.newListener([this](std::string& msg) {
+		ofLogWarning("CameraCalib") << msg;
+	});
 }
 
 void Engine::update() {
@@ -66,6 +85,14 @@ void Engine::activate(State s) {
 	projectorOutput_.begin();
 	ofClear(0, 0, 0, 255);
 	projectorOutput_.end();
+
+	switch (s) {
+	case State::STATE_CAMERA_CALIB:
+		if (cameraCalibEngine_) cameraCalibEngine_->reset();
+		break;
+	default:
+		break;
+	}
 }
 
 const ofPixels & Engine::getLatestFrame() const {
@@ -97,4 +124,21 @@ void Engine::tryLoadCameraCalibration() {
 	} else {
 		ofLogNotice("Engine") << "No valid camera calibration found (file missing or empty)";
 	}
+}
+
+bool Engine::saveCameraCalibration(const std::string& path) {
+	auto cal = repository_.getCameraCalibration();
+	if (cal) {
+		return cal->save(path);
+	}
+	return false;
+}
+
+bool Engine::loadCameraCalibration(const std::string& path) {
+	CameraCalibration cal;
+	if (cal.load(path)) {
+		repository_.setCameraCalibration(cal);
+		return true;
+	}
+	return false;
 }

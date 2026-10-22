@@ -38,6 +38,4 @@ private:
 	std::shared_ptr<Engine> engine_;
 	ofxImGui::Gui gui;
 	ofImage cameraImage_;
-	ofFbo cameraPreviewFbo_;
-	bool debugDrawCamera_ = false;
 };
