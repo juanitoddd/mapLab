@@ -29,12 +29,14 @@ void GuiApp::draw() {
 	if (engine_) {
 		ImGui::Begin("Camera Preview");
 		auto tex = engine_->getLatestFrameTexture();
-		if (tex.isAllocated()) {
+		bool allocated = tex.isAllocated();
+		if (allocated) {
 			float w = ImGui::GetWindowWidth() - 20;
 			float h = w * (720.0f / 1280.0f);
 			ImGui::Image((ImTextureID)(uintptr_t)tex.getTextureData().textureID, ImVec2(w, h));
+			ImGui::Text("Texture: %dx%d (id=%u)", tex.getWidth(), tex.getHeight(), tex.getTextureData().textureID);
 		} else {
-			ImGui::Text("No camera feed");
+			ImGui::Text("No camera feed (texture not allocated)");
 		}
 		ImGui::End();
 	}
@@ -51,7 +53,7 @@ void GuiApp::draw() {
 					ImGui::PopStyleColor();
 				} else if (ImGui::MenuItem(appState->toString(state).data())) {
 					appState->setState(static_cast<int>(state));
-					if (engine_) engine_->activate(state);
+					// activate() handled by ProjectorApp stateChanged listener
 				}
 			}
 			ImGui::EndMenu();
@@ -63,34 +65,19 @@ void GuiApp::draw() {
 		ImGui::EndMainMenuBar();
 	}
 
-	switch (appState->getState()) {
-	case State::STATE_IDLE: {
-		ImGui::Begin("Input Debug");
-		ImGui::Text("Mouse: %.1f, %.1f", ImGui::GetIO().MousePos.x, ImGui::GetIO().MousePos.y);
-		ImGui::Text("Left button: %d", ImGui::GetIO().MouseDown[0]);
-		if (ImGui::Button("TEST BUTTON")) {
-			ofLogNotice() << "ImGui button clicked!";
-		}
-		ImGui::End();
-		break;
-	}
-	default:
-		break;
-	}
-
 	gui.end();
 }
 
-void GuiApp::exit() {}
-void GuiApp::keyPressed(int key) {}
-void GuiApp::keyReleased(int key) {}
-void GuiApp::mouseMoved(int x, int y) {}
-void GuiApp::mouseDragged(int x, int y, int button) {}
-void GuiApp::mousePressed(int x, int y, int button) {}
-void GuiApp::mouseReleased(int x, int y, int button) {}
-void GuiApp::mouseScrolled(int x, int y, float scrollX, float scrollY) {}
-void GuiApp::mouseEntered(int x, int y) {}
-void GuiApp::mouseExited(int x, int y) {}
-void GuiApp::windowResized(int w, int h) {}
-void GuiApp::gotMessage(ofMessage msg) {}
-void GuiApp::dragEvent(ofDragInfo dragInfo) {}
+void GuiApp::exit() { }
+void GuiApp::keyPressed(int key) { }
+void GuiApp::keyReleased(int key) { }
+void GuiApp::mouseMoved(int x, int y) { }
+void GuiApp::mouseDragged(int x, int y, int button) { }
+void GuiApp::mousePressed(int x, int y, int button) { }
+void GuiApp::mouseReleased(int x, int y, int button) { }
+void GuiApp::mouseScrolled(int x, int y, float scrollX, float scrollY) { }
+void GuiApp::mouseEntered(int x, int y) { }
+void GuiApp::mouseExited(int x, int y) { }
+void GuiApp::windowResized(int w, int h) { }
+void GuiApp::gotMessage(ofMessage msg) { }
+void GuiApp::dragEvent(ofDragInfo dragInfo) { }
