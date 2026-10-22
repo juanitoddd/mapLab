@@ -17,18 +17,10 @@ void GuiApp::update() {
 		engine_->update();
 		const ofPixels& pix = engine_->getLatestFrame();
 		if (pix.isAllocated() && pix.getWidth() > 0 && pix.getHeight() > 0) {
-			int w = pix.getWidth();
-			int h = pix.getHeight();
-			int ch = pix.getNumChannels();
-			// Re-allocate if dimensions changed
-			if (!cameraTex_.isAllocated() ||
-			    static_cast<int>(cameraTex_.getWidth()) != w ||
-			    static_cast<int>(cameraTex_.getHeight()) != h) {
-				cameraTex_.clear();
-				cameraTex_.allocate(w, h, (ch == 4) ? GL_RGBA : GL_RGB);
-			}
-			cameraTex_.loadData(pix.getData(), w, h,
-			    (ch == 4) ? GL_RGBA : (ch == 3) ? GL_RGB : GL_LUMINANCE);
+			// ofImage::setFromPixels(const ofPixels&) infers format from pixels
+			cameraImage_.setFromPixels(pix);
+			// Force texture refresh (normally done by draw(), which we skip)
+			cameraImage_.update();
 		}
 	}
 }
@@ -39,17 +31,18 @@ void GuiApp::draw() {
 
 	if (engine_) {
 		ImGui::Begin("Camera Preview");
-		bool allocated = cameraTex_.isAllocated() &&
-		                 static_cast<int>(cameraTex_.getWidth()) > 0 &&
-		                 static_cast<int>(cameraTex_.getHeight()) > 0;
-		if (allocated) {
-			float w = ImGui::GetWindowWidth() - 20;
-			float h = w * (720.0f / 1280.0f);
-			ImGui::Image((ImTextureID)(uintptr_t)cameraTex_.getTextureData().textureID,
-			             ImVec2(w, h));
-			ImGui::Text("Texture: %dx%d",
-			            static_cast<int>(cameraTex_.getWidth()),
-			            static_cast<int>(cameraTex_.getHeight()));
+		bool ok = cameraImage_.isAllocated()
+		          && cameraImage_.getTexture().isAllocated()
+		          && cameraImage_.getTexture().getWidth() > 0;
+		if (ok) {
+			float w = ImGui::GetWindowContentRegionWidth() - 10;
+			float h = cameraImage_.getHeight() * (w / cameraImage_.getWidth());
+			ImGui::Image(GetImTextureID(cameraImage_.getTexture()), ImVec2(w, h));
+			// Diagnostic text
+			ImGui::Text("%dx%d - %d ch",
+			            (int)cameraImage_.getWidth(),
+			            (int)cameraImage_.getHeight(),
+			            cameraImage_.getPixels().getNumChannels());
 		} else {
 			ImGui::Text("No camera feed");
 		}
@@ -59,7 +52,7 @@ void GuiApp::draw() {
 	if (ImGui::BeginMainMenuBar()) {
 		ImGui::Text("| %s |", appState->toString(appState->mode).data());
 		if (ImGui::BeginMenu("State")) {
-			for (int i = 0; i < static_cast<int>(State::STATE_PERFORM) + 1; ++i) {
+			for (int i = 0; i <= static_cast<int>(State::STATE_PERFORM); ++i) {
 				State state = static_cast<State>(i);
 				bool canEnter = engine_ ? engine_->canEnter(state) : true;
 				if (!canEnter) {
