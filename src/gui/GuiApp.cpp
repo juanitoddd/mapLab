@@ -72,7 +72,7 @@ void GuiApp::draw() {
 		ImGui::EndMainMenuBar();
 	}
 
-	ImGui::End();
+	gui.end();
 }
 
 void GuiApp::keyPressed(int key) {
