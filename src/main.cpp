@@ -15,7 +15,6 @@ int main() {
         1280, 720,   // camera resolution
         1920, 1080   // projector resolution
     );
-    engine->setup();
 
     ofGLFWWindowSettings guiSettings;
     guiSettings.setSize(1280, 800);
@@ -34,6 +33,10 @@ int main() {
     projectorSettings.shareContextWith = guiWindow;
 
     auto projectorWindow = ofCreateWindow(projectorSettings);
+
+    // Setup engine after GL context is created (required for FBO allocation)
+    engine->setup();
+
     ofRunApp(guiWindow, std::make_shared<GuiApp>(state, engine));
     ofRunApp(projectorWindow, std::make_shared<ProjectorApp>(state, engine));
 
