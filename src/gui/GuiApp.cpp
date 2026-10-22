@@ -7,9 +7,6 @@ void GuiApp::setup() {
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	ImGui::GetIO().MouseDrawCursor = false;
 	backgroundColor = ofColor(114, 144, 154);
-	show_test_window = false;
-	show_another_window = false;
-	floatValue = 0.0f;
 }
 
 void GuiApp::update() {
@@ -26,42 +23,30 @@ void GuiApp::update() {
 void GuiApp::draw() {
 	ofSetBackgroundColor(backgroundColor);
 
-	// Render camera preview into dedicated FBO
+	// --- Native OF camera preview (positioned to feel like an ImGui window) ---
+	float previewX = 10;
+	float previewY = 40;
+	float previewW = 640;
+	float previewH = 360;
+
 	if (cameraImage_.isAllocated() && cameraImage_.getWidth() > 0) {
-		int imgW = static_cast<int>(cameraImage_.getWidth());
-		int imgH = static_cast<int>(cameraImage_.getHeight());
-		if (!cameraPreviewFbo_.isAllocated() ||
-		    static_cast<int>(cameraPreviewFbo_.getWidth()) != imgW ||
-		    static_cast<int>(cameraPreviewFbo_.getHeight()) != imgH) {
-			cameraPreviewFbo_.allocate(imgW, imgH, GL_RGB);
-		}
-		cameraPreviewFbo_.begin();
-		ofClear(0, 0, 0, 255);
-		cameraImage_.draw(0, 0);
-		cameraPreviewFbo_.end();
+		ofPushStyle();
+		// Window-like background
+		ofSetColor(40, 40, 40);
+		ofDrawRectangle(previewX - 2, previewY - 22, previewW + 4, previewH + 24);
+		// Title bar
+		ofSetColor(60, 60, 60);
+		ofDrawRectangle(previewX - 2, previewY - 22, previewW + 4, 20);
+		ofSetColor(255);
+		ofDrawBitmapString("Camera Preview", previewX + 4, previewY - 8);
+		// Image
+		ofSetColor(255);
+		cameraImage_.draw(previewX, previewY, previewW, previewH);
+		ofPopStyle();
 	}
 
+	// --- ImGui overlay on top ---
 	gui.begin();
-
-	if (engine_) {
-		ImGui::Begin("Camera Preview");
-		bool hasFbo = cameraPreviewFbo_.isAllocated()
-		              && cameraPreviewFbo_.getWidth() > 0;
-		if (hasFbo) {
-			float w = ImGui::GetWindowContentRegionWidth() - 10;
-			float h = cameraPreviewFbo_.getHeight() * (w / cameraPreviewFbo_.getWidth());
-			ImGui::Image(
-			    (ImTextureID)(uintptr_t)cameraPreviewFbo_.getTexture().getTextureData().textureID,
-			    ImVec2(w, h)
-			);
-			ImGui::Text("%dx%d",
-			            (int)cameraPreviewFbo_.getWidth(),
-			            (int)cameraPreviewFbo_.getHeight());
-		} else {
-			ImGui::Text("No camera feed");
-		}
-		ImGui::End();
-	}
 
 	if (ImGui::BeginMainMenuBar()) {
 		ImGui::Text("| %s |", appState->toString(appState->mode).data());
@@ -87,24 +72,18 @@ void GuiApp::draw() {
 		ImGui::EndMainMenuBar();
 	}
 
-	gui.end();
-
-	// Debug: native OF draw bypassing ImGui entirely
-	if (debugDrawCamera_ && cameraImage_.isAllocated() && cameraImage_.getWidth() > 0) {
-		ofPushStyle();
-		ofSetColor(255);
-		cameraImage_.draw(10, 100, 640, 360);
-		ofSetColor(255, 0, 0);
-		ofDrawBitmapString("DEBUG: Native OF draw (press 'd' to toggle)", 12, 95);
-		ofPopStyle();
-	}
+	ImGui::End();
 }
 
-void GuiApp::exit() { }
 void GuiApp::keyPressed(int key) {
-	if (key == 'd' || key == 'D') {
-		debugDrawCamera_ = !debugDrawCamera_;
-		ofLogNotice("GuiApp") << "Debug camera draw: " << (debugDrawCamera_ ? "ON" : "OFF");
+	if (key == 's') {
+		if (engine_) {
+			auto tex = engine_->getLatestFrameTexture();
+			ofLogNotice("GuiApp") << "Grabber texture: " << tex.getWidth() << "x" << tex.getHeight();
+			ofLogNotice("GuiApp") << "Image texture: " << cameraImage_.getTexture().getWidth()
+			                      << "x" << cameraImage_.getTexture().getHeight()
+			                      << " allocated=" << cameraImage_.getTexture().isAllocated();
+		}
 	}
 }
 void GuiApp::keyReleased(int key) { }
@@ -118,3 +97,4 @@ void GuiApp::mouseExited(int x, int y) { }
 void GuiApp::windowResized(int w, int h) { }
 void GuiApp::gotMessage(ofMessage msg) { }
 void GuiApp::dragEvent(ofDragInfo dragInfo) { }
+void GuiApp::exit() { }
