@@ -1,19 +1,20 @@
 #pragma once
 #include "../state/AppState.h"
+#include "../engine/Engine.h"
 #include "ofMain.h"
 #include "ofxImGui.h"
 #include "ui/UiTheme.h"
 
 class GuiApp : public ofBaseApp {
 public:
-	explicit GuiApp(std::shared_ptr<AppState> state)
-		: appState(std::move(state)) { }
+	GuiApp(std::shared_ptr<AppState> state, std::shared_ptr<Engine> engine)
+		: appState(std::move(state))
+		, engine_(std::move(engine)) { }
 
 	void setup() override;
 	void update() override;
 	void draw() override;
 	void exit() override;
-
 	void keyPressed(int key) override;
 	void keyReleased(int key) override;
 	void mouseMoved(int x, int y) override;
@@ -34,7 +35,6 @@ public:
 
 private:
 	std::shared_ptr<AppState> appState;
+	std::shared_ptr<Engine> engine_;
 	ofxImGui::Gui gui;
-	// Hardware
-	ofVideoGrabber grabber;
 };
