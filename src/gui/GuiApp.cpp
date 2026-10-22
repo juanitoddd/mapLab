@@ -17,9 +17,7 @@ void GuiApp::update() {
 		engine_->update();
 		const ofPixels& pix = engine_->getLatestFrame();
 		if (pix.isAllocated() && pix.getWidth() > 0 && pix.getHeight() > 0) {
-			// ofImage::setFromPixels(const ofPixels&) infers format from pixels
 			cameraImage_.setFromPixels(pix);
-			// Force texture refresh (normally done by draw(), which we skip)
 			cameraImage_.update();
 		}
 	}
@@ -27,22 +25,38 @@ void GuiApp::update() {
 
 void GuiApp::draw() {
 	ofSetBackgroundColor(backgroundColor);
+
+	// Render camera preview into dedicated FBO
+	if (cameraImage_.isAllocated() && cameraImage_.getWidth() > 0) {
+		int imgW = static_cast<int>(cameraImage_.getWidth());
+		int imgH = static_cast<int>(cameraImage_.getHeight());
+		if (!cameraPreviewFbo_.isAllocated() ||
+		    static_cast<int>(cameraPreviewFbo_.getWidth()) != imgW ||
+		    static_cast<int>(cameraPreviewFbo_.getHeight()) != imgH) {
+			cameraPreviewFbo_.allocate(imgW, imgH, GL_RGB);
+		}
+		cameraPreviewFbo_.begin();
+		ofClear(0, 0, 0, 255);
+		cameraImage_.draw(0, 0);
+		cameraPreviewFbo_.end();
+	}
+
 	gui.begin();
 
 	if (engine_) {
 		ImGui::Begin("Camera Preview");
-		bool ok = cameraImage_.isAllocated()
-		          && cameraImage_.getTexture().isAllocated()
-		          && cameraImage_.getTexture().getWidth() > 0;
-		if (ok) {
+		bool hasFbo = cameraPreviewFbo_.isAllocated()
+		              && cameraPreviewFbo_.getWidth() > 0;
+		if (hasFbo) {
 			float w = ImGui::GetWindowContentRegionWidth() - 10;
-			float h = cameraImage_.getHeight() * (w / cameraImage_.getWidth());
-			ImGui::Image(GetImTextureID(cameraImage_.getTexture()), ImVec2(w, h));
-			// Diagnostic text
-			ImGui::Text("%dx%d - %d ch",
-			            (int)cameraImage_.getWidth(),
-			            (int)cameraImage_.getHeight(),
-			            cameraImage_.getPixels().getNumChannels());
+			float h = cameraPreviewFbo_.getHeight() * (w / cameraPreviewFbo_.getWidth());
+			ImGui::Image(
+			    (ImTextureID)(uintptr_t)cameraPreviewFbo_.getTexture().getTextureData().textureID,
+			    ImVec2(w, h)
+			);
+			ImGui::Text("%dx%d",
+			            (int)cameraPreviewFbo_.getWidth(),
+			            (int)cameraPreviewFbo_.getHeight());
 		} else {
 			ImGui::Text("No camera feed");
 		}
