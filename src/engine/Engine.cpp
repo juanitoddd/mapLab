@@ -11,7 +11,8 @@ Engine::Engine(std::shared_ptr<AppState> state,
     , dataRoot_(dataRoot)
     , projectorWidth_(projectorWidth)
     , projectorHeight_(projectorHeight)
-    , cameraCalibEngine_(std::make_unique<CameraCalibrationEngine>(grabber_)) {
+    , cameraCalibEngine_(std::make_unique<CameraCalibrationEngine>(grabber_))
+    , scanner_(std::make_unique<StructuredLightScanner>(projectorWidth, projectorHeight)) {
 
     grabber_.setDeviceID(cameraDeviceId);
     grabber_.setDesiredFrameRate(30);
@@ -44,10 +45,22 @@ void Engine::setupEventListeners() {
     camCalWarningListener_ = cameraCalibEngine_->onWarning.newListener([this](std::string& msg) {
         ofLogWarning("CameraCalib") << msg;
     });
+
+    scannerCompleteListener_ = scanner_->onComplete.newListener([this]() {
+        ofLogNotice("Scanner") << "Scan complete";
+        State projCalibState = State::STATE_PROJECTOR_CALIB;
+        ofNotifyEvent(onRequestState, projCalibState, this);
+    });
 }
 
 void Engine::update() {
     grabber_.update();
+
+    // Render active projector pattern
+    if (activeState_ == State::STATE_SCAN && scanner_ && projectorPatternDirty_) {
+        scanner_->renderPatternTo(projectorOutput_);
+        projectorPatternDirty_ = false;
+    }
 }
 
 bool Engine::canEnter(State s) const {
@@ -68,7 +81,13 @@ bool Engine::canEnter(State s) const {
                 blockReason_ = "Camera calibration required. Run Camera Calibration first.";
                 return false;
             }
-            if (s == STATE_MAP || s == STATE_PERFORM || s == STATE_VERIFY) {
+            if (s == STATE_SCAN) return true;
+
+            if (s == STATE_PROJECTOR_CALIB) {
+                return true; // Allowed after scan or for review
+            }
+
+            if (s == STATE_MAP || s == STATE_PERFORM || s == STATE_VERIFY || s == STATE_MESH_VIEW) {
                 if (!repository_.hasProjectorCalibration()) {
                     blockReason_ = "Projector calibration required. Complete scanning first.";
                     return false;
@@ -76,12 +95,6 @@ bool Engine::canEnter(State s) const {
                 if (!repository_.hasMesh()) {
                     blockReason_ = "Mesh required. Complete scanning and mesh generation first.";
                     return false;
-                }
-            }
-            if (s == STATE_PROJECTOR_CALIB) {
-                if (!repository_.hasProjectorCalibration()) {
-                    // This state is for review after scan; allow entry from scan
-                    // The actual check will be refined once scanning produces projector cal
                 }
             }
             return true;
@@ -95,20 +108,30 @@ std::string Engine::getBlockReason() const {
 }
 
 void Engine::activate(State s) {
+    activeState_ = s;
+    projectorPatternDirty_ = true;
+
     projectorOutput_.begin();
     ofClear(0, 0, 0, 255);
     projectorOutput_.end();
 
     switch (s) {
         case State::STATE_IDLE:
+            break;
         case State::STATE_CAMERA_CALIB:
+            if (cameraCalibEngine_) cameraCalibEngine_->reset();
+            break;
         case State::STATE_SCAN:
+            if (scanner_) {
+                scanner_->reset();
+                projectorPatternDirty_ = true;
+            }
+            break;
         case State::STATE_PROJECTOR_CALIB:
         case State::STATE_MESH_VIEW:
         case State::STATE_VERIFY:
         case State::STATE_MAP:
         case State::STATE_PERFORM:
-            // Placeholder for future SubEngine dispatch
             break;
     }
 }

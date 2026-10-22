@@ -76,7 +76,10 @@ void GuiApp::draw() {
 		break;
 	}
 
-	case State::STATE_SCAN:
+	case State::STATE_SCAN: {
+		drawScanPanel();
+		break;
+	}
 	case State::STATE_PROJECTOR_CALIB:
 	case State::STATE_MESH_VIEW:
 	case State::STATE_VERIFY:
@@ -176,6 +179,56 @@ void GuiApp::drawCameraCalibPanel() {
 		if (ImGui::Button("Load...")) {
 			engine_->loadCameraCalibration(ofToDataPath("calibrations/camera_manual.yml", true));
 		}
+	}
+
+	ImGui::End();
+}
+
+void GuiApp::drawScanPanel() {
+	if (!engine_) return;
+
+	auto* scanner = engine_->getScanner();
+	if (!scanner) return;
+
+	ImGui::Begin("Structured Light Scanning");
+
+	// Pattern preview
+	auto& projFbo = engine_->getProjectorOutput();
+	if (projFbo.isAllocated()) {
+		float w = ImGui::GetWindowWidth() - 20;
+		float h = w * (static_cast<float>(projFbo.getHeight()) / projFbo.getWidth());
+		ImGui::Image((ImTextureID)(uintptr_t)projFbo.getTexture().getTextureData().textureID, ImVec2(w, h));
+	}
+
+	ImGui::Separator();
+
+	int pair = scanner->getCurrentPair();
+	int total = scanner->getTotalPairs();
+	ImGui::Text("Pair: %d / %d", pair + 1, total);
+	ImGui::ProgressBar(scanner->getProgress(), ImVec2(-1, 0));
+
+	// Resolution spinner
+	static int resX = scanner->getResolutionX();
+	static int resY = scanner->getResolutionY();
+	if (pair == 0) {
+		ImGui::InputInt("Resolution X", &resX, 256);
+		ImGui::InputInt("Resolution Y", &resY, 256);
+		if (ImGui::Button("Apply Resolution")) {
+			scanner->setResolution(resX, resY);
+		}
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::Button("Capture")) {
+		if (scanner->step()) {
+			ofLogNotice("GuiApp") << "Scan complete";
+		}
+	}
+
+	ImGui::SameLine();
+	if (ImGui::Button("Reset")) {
+		scanner->reset();
 	}
 
 	ImGui::End();

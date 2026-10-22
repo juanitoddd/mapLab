@@ -1,6 +1,7 @@
 #pragma once
 #include "DataRepository.h"
 #include "steppers/CameraCalibrationEngine.h"
+#include "steppers/StructuredLightScanner.h"
 #include "../state/AppState.h"
 #include "ofMain.h"
 #include <memory>
@@ -44,6 +45,7 @@ public:
 
     // Steppers / SubEngines
     CameraCalibrationEngine* getCameraCalibrationEngine() { return cameraCalibEngine_.get(); }
+    StructuredLightScanner* getScanner() { return scanner_.get(); }
 
     // Manual calibration persistence
     bool saveCameraCalibration(const std::string& path);
@@ -71,8 +73,16 @@ private:
 
     // Steppers
     std::unique_ptr<CameraCalibrationEngine> cameraCalibEngine_;
+    std::unique_ptr<StructuredLightScanner> scanner_;
 
     // Event listeners
     ofEventListener camCalCompleteListener_;
     ofEventListener camCalWarningListener_;
+    ofEventListener scannerCompleteListener_;
+    ofEventListener scannerWarningListener_;
+
+    State activeState_ = State::STATE_IDLE;
+    bool projectorPatternDirty_ = true;
+
+
 };

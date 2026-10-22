@@ -36,6 +36,7 @@ public:
 
 private:
 	void drawCameraCalibPanel();
+	void drawScanPanel();
 
 	std::shared_ptr<AppState> appState;
 	std::shared_ptr<Engine> engine_;
