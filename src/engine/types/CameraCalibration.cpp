@@ -1,6 +1,11 @@
 #include "CameraCalibration.h"
+#include <fstream>
 
 bool CameraCalibration::load(const std::string& path) {
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open() || file.tellg() <= 0) return false;
+    file.close();
+
     cv::FileStorage fs(path, cv::FileStorage::READ);
     if (!fs.isOpened()) return false;
     fs["cameraMatrix"] >> cameraMatrix_;

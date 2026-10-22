@@ -87,9 +87,13 @@ void Engine::ensureDirectories() {
 }
 
 void Engine::tryLoadCameraCalibration() {
+    std::string path = DataRepository::getCameraCalibrationPath();
+    ofLogNotice("Engine") << "Looking for camera calibration at: " << path;
     CameraCalibration cal;
-    if (cal.load(DataRepository::getCameraCalibrationPath())) {
+    if (cal.load(path)) {
         repository_.setCameraCalibration(cal);
         ofLogNotice("Engine") << "Auto-loaded camera calibration";
+    } else {
+        ofLogNotice("Engine") << "No valid camera calibration found (file missing or empty)";
     }
 }
