@@ -37,4 +37,5 @@ private:
 	std::shared_ptr<AppState> appState;
 	std::shared_ptr<Engine> engine_;
 	ofxImGui::Gui gui;
+	ofImage cameraImage_;
 };

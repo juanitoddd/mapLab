@@ -15,6 +15,10 @@ void GuiApp::setup() {
 void GuiApp::update() {
 	if (engine_) {
 		engine_->update();
+		const ofPixels& pix = engine_->getLatestFrame();
+		if (pix.isAllocated()) {
+			cameraImage_.setFromPixels(pix);
+		}
 	}
 }
 
@@ -28,15 +32,15 @@ void GuiApp::draw() {
 
 	if (engine_) {
 		ImGui::Begin("Camera Preview");
-		auto tex = engine_->getLatestFrameTexture();
-		bool allocated = tex.isAllocated();
+		auto tex = cameraImage_.getTexture();
+		bool allocated = tex.isAllocated() && tex.getWidth() > 0 && tex.getHeight() > 0;
 		if (allocated) {
 			float w = ImGui::GetWindowWidth() - 20;
 			float h = w * (720.0f / 1280.0f);
 			ImGui::Image((ImTextureID)(uintptr_t)tex.getTextureData().textureID, ImVec2(w, h));
 			ImGui::Text("Texture: %dx%d (id=%u)", tex.getWidth(), tex.getHeight(), tex.getTextureData().textureID);
 		} else {
-			ImGui::Text("No camera feed (texture not allocated)");
+			ImGui::Text("No camera feed");
 		}
 		ImGui::End();
 	}
