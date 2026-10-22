@@ -10,7 +10,8 @@ Engine::Engine(std::shared_ptr<AppState> state,
     : appState_(std::move(state))
     , dataRoot_(dataRoot)
     , projectorWidth_(projectorWidth)
-    , projectorHeight_(projectorHeight) {
+    , projectorHeight_(projectorHeight)
+    , cameraCalibEngine_(std::make_unique<CameraCalibrationEngine>(grabber_)) {
 
     grabber_.setDeviceID(cameraDeviceId);
     grabber_.setDesiredFrameRate(30);
@@ -20,11 +21,29 @@ Engine::Engine(std::shared_ptr<AppState> state,
 void Engine::setup() {
     ensureDirectories();
     tryLoadCameraCalibration();
+    setupEventListeners();
 
     projectorOutput_.allocate(projectorWidth_, projectorHeight_, GL_RGBA);
     projectorOutput_.begin();
     ofClear(0, 0, 0, 255);
     projectorOutput_.end();
+}
+
+void Engine::setupEventListeners() {
+    camCalCompleteListener_ = cameraCalibEngine_->onComplete.newListener([this]() {
+        auto cal = cameraCalibEngine_->getCalibration();
+        if (cal.isValid()) {
+            repository_.setCameraCalibration(cal);
+            cal.save(DataRepository::getCameraCalibrationPath());
+            ofLogNotice("Engine") << "Camera calibration solved and saved";
+        }
+        State idleState = State::STATE_IDLE;
+        ofNotifyEvent(onRequestState, idleState, this);
+    });
+
+    camCalWarningListener_ = cameraCalibEngine_->onWarning.newListener([this](std::string& msg) {
+        ofLogWarning("CameraCalib") << msg;
+    });
 }
 
 void Engine::update() {
@@ -49,17 +68,20 @@ bool Engine::canEnter(State s) const {
                 blockReason_ = "Camera calibration required. Run Camera Calibration first.";
                 return false;
             }
-            // Additional checks for later states will be added in subsequent tickets
             if (s == STATE_MAP || s == STATE_PERFORM || s == STATE_VERIFY) {
                 if (!repository_.hasProjectorCalibration()) {
                     blockReason_ = "Projector calibration required. Complete scanning first.";
                     return false;
                 }
-                if (s == STATE_MAP || s == STATE_PERFORM || s == STATE_VERIFY) {
-                    if (!repository_.hasMesh()) {
-                        blockReason_ = "Mesh required. Complete scanning and mesh generation first.";
-                        return false;
-                    }
+                if (!repository_.hasMesh()) {
+                    blockReason_ = "Mesh required. Complete scanning and mesh generation first.";
+                    return false;
+                }
+            }
+            if (s == STATE_PROJECTOR_CALIB) {
+                if (!repository_.hasProjectorCalibration()) {
+                    // This state is for review after scan; allow entry from scan
+                    // The actual check will be refined once scanning produces projector cal
                 }
             }
             return true;
@@ -73,10 +95,22 @@ std::string Engine::getBlockReason() const {
 }
 
 void Engine::activate(State s) {
-    // Currently a placeholder - sub-engine activation will be added in subsequent tickets
     projectorOutput_.begin();
     ofClear(0, 0, 0, 255);
     projectorOutput_.end();
+
+    switch (s) {
+        case State::STATE_IDLE:
+        case State::STATE_CAMERA_CALIB:
+        case State::STATE_SCAN:
+        case State::STATE_PROJECTOR_CALIB:
+        case State::STATE_MESH_VIEW:
+        case State::STATE_VERIFY:
+        case State::STATE_MAP:
+        case State::STATE_PERFORM:
+            // Placeholder for future SubEngine dispatch
+            break;
+    }
 }
 
 const ofPixels& Engine::getLatestFrame() const {
@@ -92,19 +126,15 @@ ofFbo& Engine::getProjectorOutput() {
 }
 
 void Engine::onMousePressed(int viewportId, int x, int y, int button) {
-    // Placeholder for future SubEngine dispatch
 }
 
 void Engine::onMouseDragged(int viewportId, int x, int y, int button) {
-    // Placeholder
 }
 
 void Engine::onMouseReleased(int viewportId, int x, int y, int button) {
-    // Placeholder
 }
 
 void Engine::onMouseScrolled(int viewportId, float scrollX, float scrollY) {
-    // Placeholder
 }
 
 void Engine::ensureDirectories() {
@@ -120,4 +150,21 @@ void Engine::tryLoadCameraCalibration() {
         repository_.setCameraCalibration(cal);
         ofLogNotice("Engine") << "Auto-loaded camera calibration";
     }
+}
+
+bool Engine::saveCameraCalibration(const std::string& path) {
+    auto cal = repository_.getCameraCalibration();
+    if (cal) {
+        return cal->save(path);
+    }
+    return false;
+}
+
+bool Engine::loadCameraCalibration(const std::string& path) {
+    CameraCalibration cal;
+    if (cal.load(path)) {
+        repository_.setCameraCalibration(cal);
+        return true;
+    }
+    return false;
 }

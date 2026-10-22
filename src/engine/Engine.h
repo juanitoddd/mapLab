@@ -1,5 +1,6 @@
 #pragma once
 #include "DataRepository.h"
+#include "steppers/CameraCalibrationEngine.h"
 #include "../state/AppState.h"
 #include "ofMain.h"
 #include <memory>
@@ -41,9 +42,17 @@ public:
     void onMouseReleased(int viewportId, int x, int y, int button);
     void onMouseScrolled(int viewportId, float scrollX, float scrollY);
 
+    // Steppers / SubEngines
+    CameraCalibrationEngine* getCameraCalibrationEngine() { return cameraCalibEngine_.get(); }
+
+    // Manual calibration persistence
+    bool saveCameraCalibration(const std::string& path);
+    bool loadCameraCalibration(const std::string& path);
+
 private:
     void ensureDirectories();
     void tryLoadCameraCalibration();
+    void setupEventListeners();
 
     std::shared_ptr<AppState> appState_;
     std::string dataRoot_;
@@ -59,4 +68,11 @@ private:
     // Dimensions
     int projectorWidth_;
     int projectorHeight_;
+
+    // Steppers
+    std::unique_ptr<CameraCalibrationEngine> cameraCalibEngine_;
+
+    // Event listeners
+    ofEventListener camCalCompleteListener_;
+    ofEventListener camCalWarningListener_;
 };
