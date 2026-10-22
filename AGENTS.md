@@ -23,6 +23,8 @@ from `src/state/AppState.h`, we have following states:
 
 This is where the classes that manage the computer vision, structured-light scanning, 3D reconstruction, and projection mapping are located
 
+This includes, camera-projector calibration, mapping editor, mesh viewer, structured light scanner and rest of additional classes and helpers.
+
 ## Agent skills
 
 ### Issue tracker
